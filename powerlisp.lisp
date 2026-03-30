@@ -234,13 +234,9 @@ The arguments need to be isolated, with no whitespace inbetween."
   (setf *launcher-params*
 	(cons "-b" *launcher-params*)))
 
-;; Use rofi flag for emulating dmenu, and also
-;; remove the one-line flags
+;; Walker uses --dmenu flag for dmenu emulation
 (when *launcher-rofi-emulate-dmenu*
-  (setf *launcher-params*
-	(cons "-dmenu"
-	      (butlast (butlast *launcher-params*)))))
-
+  (setf *launcher-params* '("--dmenu")))
 
 ;;; ------------------------------------------------------------------------ ;;;
 ;;;                    External command macros and procedures                ;;;
@@ -367,27 +363,31 @@ The arguments need to be isolated, with no whitespace inbetween."
 	       (setf *rerun-main-menu* t
 		     *incognito-mode* (not *incognito-mode*))))))
 
-
-
 ;;; ------------------------------------------------------------------------ ;;;
 ;;;                               Entry point                                ;;;
 ;;; ------------------------------------------------------------------------ ;;;
 
-(defun run-powerlisp ()
-  (loop
-     do (setf *rerun-main-menu* nil)
-       (with-powerlisp-menu ((format nil "~a~a >> "
-				     *launcher-prompt*
-				     (if *incognito-mode* " [incognito]" ""))
-			     *subcommands*)
-	 (if (functionp assoc-value)
-	     ;; Check for listing under commands
-	     (pl-request-command option)
-	     ;; On the other hand, it may be that it is not a command.
-	     (progn (powerlisp-notify (format nil "Searching for ~a..." option))
-		    (powerlisp-call-browser
-		     (pl-build-search-query raw-input
-					    *default-search-engine*)))))
-     while *rerun-main-menu*))
+(defvar *direct-menu-mode* nil)
 
-(run-powerlisp)
+(defun run-powerlisp ()
+  (unless *direct-menu-mode*
+    (loop
+      do
+        (setf *rerun-main-menu* nil)
+        (with-powerlisp-menu ((format nil "~a~a >> "
+                                      *launcher-prompt*
+                                      (if *incognito-mode* " [incognito]" ""))
+                              *subcommands*)
+          (if (functionp assoc-value)
+              ;; Check for listing under commands
+              (pl-request-command option)
+              ;; On the other hand, it may be that it is not a command.
+              (progn
+                (powerlisp-notify (format nil "Searching for ~a..." option))
+                (powerlisp-call-browser
+                 (pl-build-search-query raw-input
+                                        *default-search-engine*)))))
+      while *rerun-main-menu*)))
+
+(unless *direct-menu-mode*
+  (run-powerlisp))
